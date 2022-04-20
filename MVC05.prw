@@ -383,7 +383,7 @@ static function Total(cod_c as character) as numeric
     
     tot := 0
     nI := 1
-
+    
     while nI <= len(aBrowseCP)
         if alltrim(cod_c) == alltrim(aBrowseCP[nI, 2])
             tot += aBrowseCP[nI, 6]
