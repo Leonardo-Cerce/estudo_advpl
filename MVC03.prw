@@ -1,3 +1,8 @@
+// Programa simples de cadastro de produtos em cestas de compra usando o modelo MVC
+// Programa criado para facilitar a adição de dados no BD
+// Pouca mudança em relação ao MVC01
+// Verificar MVC01 para comentários acerca da implementação
+
 #include "protheus.ch"
 #include "fwmvcdef.ch"
 
@@ -11,7 +16,7 @@ user function MVC03()
 
     oFwmbr := fwmbrowse():new()
     oFwmbr:setalias("Z04")
-    oFwmbr:setdescription("Cadastro de cestas")
+    oFwmbr:setdescription("Cadastro de produtos em cestas")
     oFwmbr:disabledetails()
     oFwmbr:setmenudef("MVC03")
     oFwmbr:activate()
