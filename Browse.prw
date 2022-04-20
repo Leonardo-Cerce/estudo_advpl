@@ -1,29 +1,32 @@
-#include "protheus.ch"
-#include "fwmvcdef.ch"
+// Programa que exibe os clientes adicionados através de um browse.
+// Permite adicionar clientes ao executar a função de cadastro de 'cadastro.prw'.
 
-user function browse()
+#include "protheus.ch"
+#include "fwmvcdef.ch" // includes
+
+user function browse() // função principal
     
     local oDlg as object
-    local aArea as array
-    private aRot as array
+    local aArea as array // variáveis locais
+    private aRot as array // variável que contém as rotinas do programa, a fim de exibir os botões correspondentes
 
-    aRot := menudef()
+    aRot := menudef() // menu com os botões
 
     dbselectarea("Z00")
-    aArea := Z00->(getarea())
+    aArea := Z00->(getarea()) // seleciona a tabela e salva o cursor
     
-    oDlg := fwmbrowse():new()
-    oDlg:setalias("Z00")
-    oDlg:setdescription("Clientes")
-    oDlg:setmenudef("browse")
-    oDlg:activate()
+    oDlg := fwmbrowse():new() // cria um browse
+    oDlg:setalias("Z00") // seleciona a tabela que será usada
+    oDlg:setdescription("Clientes") // define a descrição do browse
+    oDlg:setmenudef("browse") // define o menu de botões usado
+    oDlg:activate() // ativa o browse
     
     Z00->(restarea(aArea))
-    Z00->(dbclosearea())
+    Z00->(dbclosearea()) // restaura o cursor e fecha a tabela
 
 return nil
 
-static function menudef() as array
+static function menudef() as array // definição do menu de botões e a ação de cada um destes
     local aRotinas as array
     aRotinas := {}
     //add option aRotinas title 'Pesquisar' action  operation 1 access 0
