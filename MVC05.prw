@@ -94,6 +94,8 @@ user function MVC05() // função principal
         Cesta->(dbskip())
     enddo
 
+    Cesta->(dbclosearea()) // query é finalizada
+
     oBrowseC:addcolumn(tccolumn():new("Filial", {||aBrowseC[oBrowseC:nAt, 1]}))
     oBrowseC:addcolumn(tccolumn():new("Código", {||aBrowseC[oBrowseC:nAt, 2]}))
     oBrowseC:addcolumn(tccolumn():new("Descrição", {||aBrowseC[oBrowseC:nAt, 3]}))
@@ -120,6 +122,8 @@ user function MVC05() // função principal
         aadd(aBrowseP, aAux)
         Prod->(dbskip())
     enddo
+
+    Prod->(dbclosearea()) // query é finalizada
 
     oBrowseP:addcolumn(tccolumn():new("Filial", {||aBrowseP[oBrowseP:nAt, 1]}))
     oBrowseP:addcolumn(tccolumn():new("Código", {||aBrowseP[oBrowseP:nAt, 2]}))
@@ -168,14 +172,10 @@ user function MVC05() // função principal
     aBrowseCPA := aclone(aBrowseCP) // clonar a lista de produtos em cesta para não perder dados
 
     if lUpdt // se houver produtos em cestas
-        Updt_Est() // atualizar o estoque
         Updt_Brw(aBrowseC[oBrowseC:nat, 2]) // atualizar o browse para exibir somente produtos que estão na cesta selecionada
     endif
 
     oDlgPrinc:activate(,,, .T.) // ativar janela principal
-
-    Cesta->(dbclosearea())
-    Prod->(dbclosearea()) // fechar as tabelas
 return nil
 
 static function DBClickP() // função executada ao clicar duas vezes em um produto da lista de produtos
@@ -191,13 +191,19 @@ static function DBClickP() // função executada ao clicar duas vezes em um produt
     cCodp := alltrim(aBrowseP[oBrowseP:nat, 2]) // código do produto atual
 
     dbselectarea("Z04")
+    dbselectarea("Z02")
     Z04->(dbgotop()) // abrir a tabela de produtos em cestas
+    Z02->(dbgotop()) // abrir a tabela de produtos
 
     nJ := 0
 
     while (alltrim(Z04->Z04_CODC) != cCodc .or. alltrim(Z04->Z04_CODP) != cCodp .or. Z04->(deleted())) .and. Z04->(lastrec()) > nJ
         Z04->(dbskip()) // posicionar o cursor em um produto de mesmo código e cesta
         nJ++ // se este produto não existir, nJ é inválido
+    enddo
+
+    while (alltrim(Z02->Z02_COD) != cCodp .or. Z02->(deleted())) // posicionar o cursor no produto selecionado
+        Z02->(dbskip())
     enddo
     
     aBrowseCP := aclone(aBrowseCPA)
@@ -206,11 +212,19 @@ static function DBClickP() // função executada ao clicar duas vezes em um produt
     if nI // se encontrou
         nAux := aBrowseP[oBrowseP:nat, 4] // estoque atual
 
-        if nAux > 0
+        if nAux > 0 // se o estoque for maior que zero, subtrai uma unidade; se não, avisa que o estoque é insuficiente
             nAux -= 1
-            aBrowseP[oBrowseP:nat, 4] := nAux // se o estoque for maior que zero, subtrai uma unidade; se não, avisa que o estoque é insuficiente
+
+            reclock("Z02", .F.)
+            Z02->Z02_EST := nAux // salva o novo estoque de produto e fecha a tabela
+            Z02->(msunlock())
+            Z02->(dbclosearea())
+
+            aBrowseP[oBrowseP:nat, 4] := nAux
         else
             msgalert("Estoque insuficiente", "Alerta")
+            Z04->(dbclosearea())
+            Z02->(dbclosearea()) // fecha as tabelas
             return nil
         endif
 
@@ -228,15 +242,23 @@ static function DBClickP() // função executada ao clicar duas vezes em um produt
         Z04->Z04_TOTAL := nAux2 // atualiza o preço total do registro no BD
         
         Z04->(msunlock())
-        Z04->(dbgotop()) // libera o registro e posiciona o cursor no primeiro registro
+        Z04->(dbclosearea()) // libera o registro e fecha a tabela
     else // se não existe o produto na cesta
         nAux := aBrowseP[oBrowseP:nat, 4]
 
-        if nAux > 0
+        if nAux > 0 // verifica o estoque
             nAux -= 1
+
+            reclock("Z02", .F.)
+            Z02->Z02_EST := nAux // salva o novo estoque de produto e fecha a tabela
+            Z02->(msunlock())
+            Z02->(dbclosearea())
+
             aBrowseP[oBrowseP:nat, 4] := nAux
         else
-            msgalert("Estoque insuficiente", "Alerta") // verifica o estoque
+            msgalert("Estoque insuficiente", "Alerta")
+            Z04->(dbclosearea())
+            Z02->(dbclosearea()) // fecha as tabelas
             return nil
         endif
 
@@ -256,9 +278,8 @@ static function DBClickP() // função executada ao clicar duas vezes em um produt
         Z04->Z04_PDESC := aBrowseP[oBrowseP:nat, 3]
         Z04->Z04_QUANT := 1
         Z04->Z04_TOTAL := aBrowseP[oBrowseP:nat, 5]
+        
         Z04->(msunlock()) // adiciona o produto no BD
-
-        Z04->(dbgotop())
         Z04->(dbclosearea())
         DelNulo() // exclui, se houver, o registro com valores nulos que é adicionado se não houver produtos em cestas
     endif
@@ -306,10 +327,16 @@ static function DBClickCP()
     enddo
 
     dbselectarea("Z04")
+    dbselectarea("Z02")
     Z04->(dbgotop())
+    Z02->(dbgotop())
 
     while alltrim(Z04->Z04_CODC) != cCodc .or. alltrim(Z04->Z04_CODP) != cCodp .or. Z04->(deleted())
         Z04->(dbskip())
+    enddo
+
+    while (alltrim(Z02->Z02_COD) != cCodp .or. Z02->(deleted()))
+        Z02->(dbskip())
     enddo
 
     aBrowseCP := aclone(aBrowseCPA)
@@ -323,6 +350,11 @@ static function DBClickCP()
             nAux2 += 1
             aBrowseP[nI, 4] := nAux2 // incrementa o estoque
 
+            reclock("Z02", .F.)
+            Z02->Z02_EST := nAux2
+            Z02->(msunlock())
+            Z02->(dbclosearea())
+
             adel(aBrowseCP, nJ)
             asize(aBrowseCP, len(aBrowseCP)-1) // apaga o registro
 
@@ -332,12 +364,16 @@ static function DBClickCP()
 
             reclock("Z04", .F.)
             Z04->(dbdelete())
-            Z04->(msunlock())
-            Z04->(dbgotop()) // apaga o registro do BD
+            Z04->(msunlock()) // apaga o registro do BD
         else // existe mais de um produto de determinado tipo
             nAux2 := aBrowseP[nI, 4]
             nAux2 += 1
             aBrowseP[nI, 4] := nAux2 // incrementa o estoque
+
+            reclock("Z02", .F.)
+            Z02->Z02_EST := nAux2
+            Z02->(msunlock())
+            Z02->(dbclosearea())
 
             nAux -= 1
             aBrowseCP[nJ, 5] := nAux // decrementa a quantidade de produtos da cesta
@@ -452,21 +488,4 @@ static function Updt_Brw(cod_c as character) // atualiza o browse para exibir os
         endif
     endif
     lRun := .T.
-return nil
-
-static function Updt_Est() // função que atualiza o estoque ao carregar os produtos da cesta do BD
-    local nI as numeric
-    local nJ as numeric
-    local aAux as numeric
-    local aAux2 as numeric
-
-    nI := 1
-    while nI <= len(aBrowseCP) // para todos os registros
-        aAux := aBrowseCP[nI, 5] // pega a quantidade na cesta
-        nJ := PesqP(aBrowseCP[nI, 3]) // encontra o produto correspondente
-        aAux2 := aBrowseP[nJ, 4] // obtém o estoque
-        aAux2 := aAux2 - aAux // decrementa o estoque
-        aBrowseP[nJ, 4] := aAux2 // atualiza o estoque
-        nI++
-    enddo
 return nil
