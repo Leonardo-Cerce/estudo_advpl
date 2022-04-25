@@ -2,7 +2,13 @@
 // No browse da direita estão os produtos, no da esquerda superior, as cestas, e no da esquerda central, os produtos em determinada cesta.
 // Na esquerda inferior, mostra-se o valor total dos produtos da cesta selecionada.
 // É possível clicar duas vezes sobre um produto para adicioná-lo em uma cesta, e clicar duas vezes nos produtos da cesta para removê-los.
-// Ao adicionar ou remover um produto da cesta, o estoque deste produto é atualizado de forma correspondente.
+// Ao adicionar ou remover um produto da cesta, o estoque deste produto é atualizado de forma correspondente, assim como o preço total.
+// Os produtos que estão em uma cesta são salvos em um banco de dados, e são carregados no início da aplicação.
+//
+// Tabelas e Campos:
+// Z02 - Produtos - [1 - Filial, 2 - Código, 3 - Descrição, 4 - Estoque, 5 - Preço]
+// Z03 - Cestas - [1 - Filial, 2 - Código, 3 - Descrição]
+// Z04 - Produtos em Cestas - [1 - Filial, 2 - Código Cesta, 3 - Código Produto, 4 - Descrição Produto, 5 - Quantidade na Cesta, 6 - Preço Total]
 
 #include "protheus.ch"
 #include "fwmvcdef.ch"
@@ -11,6 +17,7 @@
 
 user function MVC05() // função principal
     local aCoor as array
+    local aAux as array
     local oDlgPrinc as object
     local oLayer1 as object
     local oLayer2 as object
@@ -21,7 +28,6 @@ user function MVC05() // função principal
     local oPanelDMd as object
     local oPanelDBx as object
     local cQuery as character
-    local aAux as array
     local lUpdt as logical
     private aBrowseP as array
     private aBrowseC as array
@@ -295,12 +301,12 @@ static function DBClickP() // função executada ao clicar duas vezes em um produt
     oTget:ctrlrefresh() // atualiza os browses e o preço
 return nil
 
-static function PesqCP(codc as character, codp as character) as numeric
+static function PesqCP(cCodc as character, cCodp as character) as numeric
     local nI as numeric
     nI := 1
     
     while nI <= len(aBrowseCP)
-        if (alltrim(aBrowseCP[nI, 2]) == codc .and. alltrim(aBrowseCP[nI, 3]) == codp)
+        if (alltrim(aBrowseCP[nI, 2]) == cCodc .and. alltrim(aBrowseCP[nI, 3]) == cCodp)
             return nI
         endif
         nI++
@@ -405,12 +411,12 @@ return nil
 
 // pesquisa no array de produtos por determinado código, retornando zero se não encontrar e a posição do produto, se encontrar
 // varre o array até encontrar (ou não)
-static function PesqP(codp as character) as numeric
+static function PesqP(cCodp as character) as numeric
     local nI as numeric
     nI := 1
 
     while nI <= len(aBrowseP)
-        if (alltrim(aBrowseP[nI, 2]) == alltrim(codp))
+        if (alltrim(aBrowseP[nI, 2]) == alltrim(cCodp))
             return nI
         endif
         nI++
@@ -427,24 +433,24 @@ static function DelNulo()
 return nil
 
 // calcula o total dos produtos da cesta, através da soma do total de cada registro
-static function Total(cod_c as character) as numeric
-    local tot as numeric
+static function Total(cCodc as character) as numeric
+    local nTot as numeric
     local nI as numeric
     
-    tot := 0
+    nTot := 0
     nI := 1
     
     while nI <= len(aBrowseCP)
-        if alltrim(cod_c) == alltrim(aBrowseCP[nI, 2]) // soma o total de cada registro
-            tot += aBrowseCP[nI, 6]
+        if alltrim(cCodc) == alltrim(aBrowseCP[nI, 2]) // soma o total de cada registro
+            nTot += aBrowseCP[nI, 6]
         endif
         nI++
     enddo
 
-    if tot == NIL
-        tot := 0 // se o total for nulo, retorna zero
+    if nTot == NIL
+        nTot := 0 // se o total for nulo, retorna zero
     endif
-return tot
+return nTot
 
 static function BChange() // função executada ao mudar de linha no browse de cestas
     aBrowseCP := aclone(aBrowseCPA)
@@ -458,7 +464,7 @@ static function BChange() // função executada ao mudar de linha no browse de ces
     oTget:ctrlrefresh() // atualiza os browses e total
 return nil
 
-static function Updt_Brw(cod_c as character) // atualiza o browse para exibir os produtos da cesta correspondente
+static function Updt_Brw(cCodc as character) // atualiza o browse para exibir os produtos da cesta correspondente
     local nI as numeric
     local lDel as logical
 
@@ -469,7 +475,7 @@ static function Updt_Brw(cod_c as character) // atualiza o browse para exibir os
         aBrowseCP := aclone(aBrowseCPA)
         
         while nI <= len(aBrowseCP)
-            if alltrim(cod_c) != alltrim(aBrowseCP[nI, 2]) // apaga os registros cujo código de cesta é diferente do código da cesta atual
+            if alltrim(cCodc) != alltrim(aBrowseCP[nI, 2]) // apaga os registros cujo código de cesta é diferente do código da cesta atual
                 adel(aBrowseCP, nI)
                 asize(aBrowseCP, (len(aBrowseCP)-1))
                 lDel := .T.
