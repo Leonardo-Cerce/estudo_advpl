@@ -21,8 +21,9 @@ static function reportdef() as object // função de definição do relatório
 
     oSec1 := trsection():new(oRep, "Cestas", {"Z03"},, .F., .T.) // criação da seção
     trcell():new(oSec1, "COD",, "CÓDIGO DA CESTA",, 6)
-    trcell():new(oSec1, "DESC",, "DESCRIÇÃO DA CESTA",, 100)
-    trcell():new(oSec1, "TOT",, "TOTAL DOS PRODUTOS NA CESTA" ,, 5) // definição das células da seção
+    trcell():new(oSec1, "DESC",, "DESCRIÇÃO DA CESTA",, 50)
+    trcell():new(oSec1, "NIT",, "NÚMERO DE ITENS NA CESTA",, 2)
+    trcell():new(oSec1, "TOT",, "TOTAL DOS PRODUTOS NA CESTA",, 5) // definição das células da seção
     oSec1:setlinestyle(.F.) // impressão em colunas
 
     oSec2 := trsection():new(oRep, "Produtos", {"Z04"},, .F., .T.) // criação da seção
@@ -77,7 +78,8 @@ static function printrep(oRep as object) // função que insere os registros no re
 
         oSec1:cell("COD"):setvalue(Cesta->Z03_COD)
         oSec1:cell("DESC"):setvalue(Cesta->Z03_DESC)
-        oSec1:cell("TOT"):setvalue(ContTot(Cesta->Z03_COD))
+        oSec1:cell("NIT"):setvalue(ContIt(Cesta->Z03_COD))
+        oSec1:cell("TOT"):setvalue(transform(ContTot(Cesta->Z03_COD), "@E 99.99"))
         oSec1:printline() // define os valores e os insere no relatório
 
         oSec2:init() // início da seção
@@ -87,7 +89,7 @@ static function printrep(oRep as object) // função que insere os registros no re
             oSec2:cell("CODP"):setvalue(Prods->Z04_CODP)
             oSec2:cell("PDESC"):setvalue(Prods->Z04_PDESC)
             oSec2:cell("QUANT"):setvalue(Prods->Z04_QUANT)
-            oSec2:cell("TOTAL"):setvalue(Prods->Z04_TOTAL)
+            oSec2:cell("TOTAL"):setvalue(transform(Prods->Z04_TOTAL, "@E 99.99"))
             oSec2:printline() // define os valores e os insere no relatório
             Prods->(dbskip()) // vai para o próximo endereço
         enddo
@@ -114,3 +116,13 @@ static function ContTot(cCodc as character) as numeric // contabiliza o total do
     enddo
     Prods->(dbgotop()) // voltar ao primeiro registro
 return nTot
+
+static function ContIt(cCodc as character) as numeric // contabiliza a quantidade de itens em cada cesta
+    local nIt as numeric
+    nIt := 0
+    while alltrim(Prods->Z04_CODC) == cCodc // enquanto o produto pertencer à cesta atual, soma no total
+        nIt += Prods->Z04_QUANT
+        Prods->(dbskip())
+    enddo
+    Prods->(dbgotop()) // voltar ao primeiro registro
+return nIt
